@@ -29,6 +29,16 @@ public class SocketHandle extends Thread {
         this.positionMapper = positionMapper;
     }
 
+    private boolean isValid(Position position) {
+        if (position.getX() > -100 && position.getX() < 1000) {
+            if (position.getY() > 0 && position.getY() < 1000) {
+                if (position.getZ() > 0 && position.getZ() < 400) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
     public void writeToDB(Position position) {
         /**
@@ -38,7 +48,11 @@ public class SocketHandle extends Thread {
          * @Author: Chao Qian
          * @Date: 2018-11-02
          */
-        positionMapper.insert(position);
+        if (isValid(position)) {
+            if (positionMapper.insert(position) == 1) {
+                System.out.println("已写入数据库 坐标：(" + position.getX() + ", " + position.getY() + ", " + position.getZ() + ")");
+            }
+        }
     }
 
     @Override
@@ -52,7 +66,7 @@ public class SocketHandle extends Thread {
             boolean flag = true;
             while ((len = dis.read(bytes)) != -1) {
                 /*获得定位坐标（注释部分）*/
-                double[] d = new double[4];
+                int[] d = new int[4];
                 d[0] += ((bytes[2] & 0xff) << 24) + ((bytes[3] & 0xff) << 16) +
                         ((bytes[4] & 0xff) << 8) + (bytes[5] & 0xff);
                 d[1] += ((bytes[6] & 0xff) << 24) + ((bytes[7] & 0xff) << 16) +
@@ -62,7 +76,7 @@ public class SocketHandle extends Thread {
                 d[3] += ((bytes[14] & 0xff) << 24) + ((bytes[15] & 0xff) << 16) +
                         ((bytes[16] & 0xff) << 8) + (bytes[17] & 0xff);
 
-                System.out.print("d1 = " + String.valueOf(d[0]) + " d2 = " + String.valueOf(d[1]) + " d3 = "
+                System.out.println("d1 = " + String.valueOf(d[0]) + " d2 = " + String.valueOf(d[1]) + " d3 = "
                         + String.valueOf(d[2]) + " d4 = " + String.valueOf(d[3]));
 
                 /************开启线程连接python写的程序计算坐标并存入数据库***********/
@@ -76,8 +90,8 @@ public class SocketHandle extends Thread {
                      * @Date: 2018-11-02
                      */
                     try {
-                        String[] pythonArgs = new String[]{"python", "E:\\pyproject\\test1\\venv\\src\\test2.py",
-                                String.valueOf(d[1] - d[0]), String.valueOf(d[2] - d[0]), String.valueOf(d[3] - d[0])};
+                        String[] pythonArgs = new String[]{"python", "E:\\pyproject\\test2.py",
+                                String.valueOf(d[0]), String.valueOf(d[1]), String.valueOf(d[2]), String.valueOf(d[3])};
                         // 执行py文件
                         Process proc = Runtime.getRuntime().exec(pythonArgs);
                         BufferedReader in = new BufferedReader(new InputStreamReader(proc.getInputStream()));
@@ -87,9 +101,9 @@ public class SocketHandle extends Thread {
                             Position position = new Position();
                             String[] strs = line.split("\\s+");
                             position.setState("Y");
-                            position.setX(Integer.parseInt(strs[0]));
-                            position.setY(Integer.parseInt(strs[1]));
-                            position.setZ(Integer.parseInt(strs[2]));
+                            position.setX(Integer.parseInt(strs[0]) / 10);
+                            position.setY(Integer.parseInt(strs[1]) / 10);
+                            position.setZ(Integer.parseInt(strs[2]) / 10);
                             writeToDB(position);
                         }
                         in.close();
